@@ -1,6 +1,8 @@
+'use strict';
+
 import Pet from "../pet/pet.model.js";
+import User from '../user/user.model.js';
 import Appointment from "../appointment/appointment.model.js";
-import { parse } from "date-fns";
 
 export const saveAppointment = async (req, res) => {
   try {
@@ -53,6 +55,65 @@ export const saveAppointment = async (req, res) => {
       success: false, 
       msg: "Error al crear la cita", 
       error 
+    });
+  }
+};
+
+export const getAppointment = async (req, res) => {
+  const { limite = 10, desde = 0 } = req.query;
+
+  // Cambiar la consulta para incluir todos los estados, excepto "COMPLETED" si prefieres excluirlas
+  const query = { status: { $ne: "COMPLETED" } }; // Excluye las citas COMPLETED
+
+  try {
+      const appointments = await Appointment.find(query)
+          .skip(Number(desde))
+          .limit(Number(limite));
+
+      const total = await Appointment.countDocuments(query);
+
+      res.status(200).json({
+          success: true,
+          total,
+          appointments
+      });
+  } catch (error) {
+      res.status(500).json({
+          success: false,
+          message: 'Error al obtener las citas',
+          error
+      });
+  }
+}
+
+export const deleteAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Actualiza el estado de la cita a "CANCELLED" en lugar de eliminarla
+    const appointment = await Appointment.findByIdAndUpdate(
+      id,
+      { status: "CANCELLED" }, // Cambia el estado de la cita
+      { new: true }
+    );
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Cita no encontrada",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Cita cancelada exitosamente",
+      appointment,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "Error al cancelar la cita",
+      error: err.message,
     });
   }
 };
